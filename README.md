@@ -181,6 +181,10 @@ kubectl get nodes
 - Auto Scaling Group
 - 2 EC2 Spot instances
 
+<img width="743" height="74" alt="Snímek obrazovky 2026-01-17 182337" src="https://github.com/user-attachments/assets/36334b5b-dc91-4a1e-bada-0b8fe9966f51" /> <br>
+
+<img width="1445" height="832" alt="Snímek obrazovky 2026-01-17 182246" src="https://github.com/user-attachments/assets/1e548627-4ec2-4eb5-aaec-c1cdbd0fe426" /> <br>
+
 ### Phase 4: Deploy Addons (~5 min)
 ```bash
 cd ../eks-addons
