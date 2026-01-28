@@ -306,12 +306,6 @@ aws ec2 describe-vpcs --filters "Name=tag:Name,Values=dev-eks-vpc" --region eu-n
 aws eks update-kubeconfig --name dev-eks-cluster --region eu-north-1
 aws sts get-caller-identity
 ```
-
-### 1ResourceInUseException (Access Entries)
-If `terragrunt apply` fails because an Access Entry already exists, import it into your state:
-```bash
-terragrunt import 'aws_eks_access_entry.this["cluster_creator"]' <cluster-name>:<user-arn>
-
 ### Nodes not ready
 ```bash
 kubectl get nodes
@@ -325,17 +319,19 @@ aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" -
 kubectl delete svc --all --field-selector spec.type=LoadBalancer
 ```
 
+### ResourceInUseException (Access Entries)
+If `terragrunt apply` fails because an Access Entry already exists, import it into your state:
+```bash
+terragrunt import 'aws_eks_access_entry.this["cluster_creator"]' <cluster-name>:<user-arn>
+```
+
 ---
 
 ## 🧹 Cleanup
 
 Delete in reverse order:
 ```bash
-# 1. Delete LoadBalancer services
-kubectl delete svc --all --field-selector spec.type=LoadBalancer
-sleep 60
-
-# 2. Destroy addons
+# 1. Destroy k8s-pods
 cd ~/eks-terragrunt-project/dev/eu-north-1/eks-addons
 terragrunt destroy
 
