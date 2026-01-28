@@ -20,6 +20,11 @@ dependency "vpc" {
 }
 
 inputs = {
+  cluster_name    = "dev-eks-cluster"
+  cluster_version = "1.29"
+  
+  enable_cluster_creator_admin_permissions = true
+
   vpc_id     = dependency.vpc.outputs.vpc_id
   subnet_ids = dependency.vpc.outputs.private_subnets
 }

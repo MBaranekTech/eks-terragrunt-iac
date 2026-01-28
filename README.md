@@ -13,12 +13,12 @@ A hands-on learning project for building a production-ready AWS EKS cluster in E
 Learn Infrastructure as Code by **manually building** a DEV EKS environment step-by-step. No automation scripts - pure learning!
 
 ### What You'll Build
-
 - ✅ VPC with 6 subnets across 3 availability zones
 - ✅ EKS cluster with Kubernetes 1.29
 - ✅ 2 Spot instances (t3.medium) for cost optimization
-- ✅ Essential EKS addons (VPC-CNI, CoreDNS, kube-proxy, EBS CSI)
-- ✅ Production-ready security (IRSA, encryption, security groups)
+- ✅ **New: EKS Access Entries for secure IAM-to-Kubernetes identity management**
+- ✅ **New: High-Availability Nginx deployment with Pod Anti-Affinity**
+- ✅ **New: AWS Network Load Balancer (NLB) for public application access**
 - ✅ Complete understanding of every component
 
 ### Learning Focus
@@ -106,13 +106,11 @@ eks-terragrunt-project/
 │       ├── vpc/
 │       │   └── terragrunt.hcl # VPC deployment
 │       ├── eks/
-│       │   └── terragrunt.hcl # EKS deployment
-│       └── eks-addons/
-│           └── terragrunt.hcl # Addons deployment
-│
+│           └── terragrunt.hcl # EKS deployment
+│       
 └── modules/                    # Custom modules
-    └── eks-addons/
-        ├── main.tf
+    └── k8s-deployments-addons/ # Your HA App module (Deployment + Service)
+        ├── main.tf             # Updated with LoadBalancer
         ├── variables.tf
         └── outputs.tf
 ```
@@ -185,25 +183,25 @@ kubectl get nodes
 
 <img width="1445" height="832" alt="Snímek obrazovky 2026-01-17 182246" src="https://github.com/user-attachments/assets/1e548627-4ec2-4eb5-aaec-c1cdbd0fe426" /> <br>
 
-### Phase 4: Deploy Addons (~5 min)
+![alt text](<Screenshot 2026-01-28 at 21.23.50.png>) <br>
+
+### Phase 4: Application Deployment (~3 min)
 ```bash
-cd ../eks-addons
+cd ../k8s-pods
 terragrunt init
-terragrunt plan
 terragrunt apply
 
-kubectl get pods -n kube-system
+kubectl get pods -n dev-apps -o wide
 ```
-
-**Addons installed:**
-- VPC-CNI (pod networking)
-- CoreDNS (DNS resolution)
-- kube-proxy (network proxy)
-- EBS CSI Driver (persistent storage)
-
 ---
 
 ## ✅ Verification
+
+### 🔧 Local Environment Setup
+Before running `kubectl` commands, ensure your local context is pointed to the AWS cluster:
+
+```bash
+aws eks update-kubeconfig --region eu-north-1 --name dev-eks-cluster
 
 ### Check Everything Works
 ```bash
@@ -212,18 +210,17 @@ kubectl get nodes
 
 # Check system pods
 kubectl get pods -A
-
-# Deploy test application
-kubectl create deployment nginx --image=nginx:latest
-kubectl expose deployment nginx --port=80 --type=LoadBalancer
-
-# Get LoadBalancer URL (wait 2-3 minutes)
-kubectl get svc nginx -w
-
-# Test
-LOAD_BALANCER=$(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-curl http://$LOAD_BALANCER
 ```
+
+### 🔍 Check the Workload (Lens or CLI)
+1. **In Lens:** Change the namespace filter (top dropdown) from `default` to `dev-apps`.
+2. **Via CLI:**
+```bash
+# Check Pod Distribution (ensure they are on different nodes)
+kubectl get pods -n dev-apps -o wide
+
+# Check Service URL
+kubectl get svc -n dev-apps
 
 ---
 
@@ -245,7 +242,7 @@ curl http://$LOAD_BALANCER
 ✅ EKS architecture
 ✅ Managed node groups
 ✅ IRSA (IAM Roles for Service Accounts)
-✅ EKS addons
+✅ EKS pods
 ✅ Security groups
 
 ### Cost Optimization
@@ -255,6 +252,19 @@ curl http://$LOAD_BALANCER
 ✅ Resource tagging
 
 ---
+
+## 🔧 Lessons Learned (Hard-Won)
+
+### 🏷️ Subnet Discovery Tags
+I learned that EKS requires specific tags on VPC subnets to provision Load Balancers. If these are missing, the `kubernetes_service` will time out.
+- **Key:** `kubernetes.io/cluster/dev-eks-cluster`
+- **Value:** `shared`
+
+### 😵 Terraform State Recovery
+During this project, I handled a "context deadline exceeded" error by manually syncing the Terraform state:
+1. `terragrunt state rm kubernetes_service.app` (to clear out of sync data)
+2. `terragrunt import kubernetes_service.app dev-apps/my-app-service` (to link the live resource)
+
 
 ## 📖 Common Commands
 
@@ -296,6 +306,11 @@ aws ec2 describe-vpcs --filters "Name=tag:Name,Values=dev-eks-vpc" --region eu-n
 aws eks update-kubeconfig --name dev-eks-cluster --region eu-north-1
 aws sts get-caller-identity
 ```
+
+### 1ResourceInUseException (Access Entries)
+If `terragrunt apply` fails because an Access Entry already exists, import it into your state:
+```bash
+terragrunt import 'aws_eks_access_entry.this["cluster_creator"]' <cluster-name>:<user-arn>
 
 ### Nodes not ready
 ```bash
